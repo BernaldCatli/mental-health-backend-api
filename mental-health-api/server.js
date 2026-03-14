@@ -49,6 +49,19 @@ db.getConnection((err, connection) => {
     }
 });
 
+// --- NEW VIEW DATA ROUTE ---
+// Visit this URL in your browser to see all entries
+app.get('/api/data', (req, res) => {
+    db.query("SELECT * FROM mood_entries ORDER BY created_at DESC", (err, results) => {
+        if (err) {
+            console.error("Fetch error:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+// ---------------------------
+
 app.post('/api/mood', (req, res) => {
     const { name, mood } = req.body;
     
