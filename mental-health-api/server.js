@@ -5,7 +5,6 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ UPDATED CORS: Specifically allow your GitHub Pages site
 app.use(cors({
     origin: ['https://bernaldcatli.github.io', 'http://localhost:5173'],
     methods: ['GET', 'POST'],
@@ -20,28 +19,39 @@ const db = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 14391, 
-    ssl: { 
-        rejectUnauthorized: false 
-    },
+    ssl: { rejectUnauthorized: false },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
 
-// Test the connection immediately
+// 1. Test Connection and 2. Auto-Create Table
 db.getConnection((err, connection) => {
     if (err) {
         console.error("❌ Database connection failed:", err.message);
     } else {
         console.log("✅ Successfully connected to Aiven MySQL!");
-        connection.release();
+        
+        const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS mood_entries (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            mood TEXT NOT NULL,
+            ai_response TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`;
+
+        connection.query(createTableQuery, (queryErr) => {
+            if (queryErr) console.error("❌ Table creation error:", queryErr.message);
+            else console.log("✅ Table 'mood_entries' is ready!");
+            connection.release();
+        });
     }
 });
 
 app.post('/api/mood', (req, res) => {
     const { name, mood } = req.body;
     
-    // AI Logic
     let ai_response = `I understand you're feeling ${mood}, ${name}. `;
     if (mood.toLowerCase().includes('sad')) ai_response += "Try to take a walk or talk to a friend.";
     else if (mood.toLowerCase().includes('happy')) ai_response += "That's great! Keep that positive energy.";
@@ -51,7 +61,7 @@ app.post('/api/mood', (req, res) => {
     db.query(sql, [name, mood, ai_response], (err) => {
         if (err) {
             console.error("Insert error:", err.message);
-            return res.status(500).json({ error: "Database error. Check your table structure." });
+            return res.status(500).json({ error: err.message });
         }
         res.json({ ai_response });
     });
