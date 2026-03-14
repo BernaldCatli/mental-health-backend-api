@@ -6,6 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/Mentaal-health-LAB-5/', // <--- Add this exactly like this
   plugins: [
     vue(),
     vueDevTools(),

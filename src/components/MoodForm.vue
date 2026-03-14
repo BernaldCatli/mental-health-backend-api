@@ -1,94 +1,107 @@
 <template>
-  <div>
+  <div class="mood-container">
     <h2>Mood Check-in</h2>
-    
-    <input v-model="name" placeholder="Your name" />
-    <textarea v-model="mood" placeholder="How are you feeling today?"></textarea>
-    <button @click="submitMood" :disabled="loading">Submit</button>
+    <div class="input-group">
+      <input v-model="name" placeholder="Enter your name" />
+      <textarea v-model="mood" placeholder="How are you feeling today?"></textarea>
+      <button @click="handleSubmit" :disabled="loading">
+        {{ loading ? 'Sending...' : 'Submit' }}
+      </button>
+    </div>
 
-    <p v-if="loading">AI Advisor is thinking...</p>
-    <p v-if="aiMessage && !loading">AI Advisor: {{ aiMessage }}</p>
-    <p v-if="errorMessage" style="color: red;">{{ errorMessage }}</p>
+    <div v-if="aiResponse" class="ai-box">
+      <h3>AI Advisor:</h3>
+      <p>{{ aiResponse }}</p>
+    </div>
 
-    <h3 v-if="history.length">Mood History</h3>
-    <ul>
-      <li v-for="(entry, index) in history" :key="index">
-        <strong>{{ entry.name }}:</strong> {{ entry.mood }} → <em>{{ entry.aiMessage }}</em>
-      </li>
-    </ul>
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
   </div>
 </template>
 
-<script>
-import api from '../services/api';
+<script setup>
+import { ref } from 'vue';
+import axios from 'axios';
 
-export default {
-  data() {
-    return {
-      name: '',
-      mood: '',
-      aiMessage: '',
-      loading: false,
-      errorMessage: '',
-      history: []
-    };
-  },
-  methods: {
-    async submitMood() {
-      if (!this.name || !this.mood) {
-        this.errorMessage = "Please enter your name and mood.";
-        return;
-      }
+const name = ref('');
+const mood = ref('');
+const aiResponse = ref('');
+const errorMessage = ref('');
+const loading = ref(false);
 
-      this.loading = true;
-      this.aiMessage = '';
-      this.errorMessage = '';
+const handleSubmit = async () => {
+  if (!name.value || !mood.value) {
+    errorMessage.value = "Please fill in both fields.";
+    return;
+  }
 
-      try {
-        const res = await api.post('/mood', {
-          full_name: this.name,
-          mood_text: this.mood
-        });
+  loading.value = true;
+  errorMessage.value = '';
+  aiResponse.value = ''; // Clear previous response
+  
+  try {
+    // 🌐 Your live Render Backend URL
+    const API_URL = "https://mental-health-backend-api-1.onrender.com/api/mood"; 
 
-        this.aiMessage = res.data.ai_message;
+    const response = await axios.post(API_URL, {
+      name: name.value,
+      mood: mood.value
+    });
 
-        // Add to history
-        this.history.push({
-          name: this.name,
-          mood: this.mood,
-          aiMessage: this.aiMessage
-        });
-
-        // Clear input fields
-        this.name = '';
-        this.mood = '';
-      } catch (error) {
-        console.error(error);
-        this.errorMessage = "Error: Could not reach AI Advisor.";
-      } finally {
-        this.loading = false;
-      }
+    // Check if response has data and set it
+    if (response.data && response.data.ai_response) {
+      aiResponse.value = response.data.ai_response;
+    } else {
+      aiResponse.value = "The AI is thinking... but didn't give a specific answer. Try again!";
     }
+
+  } catch (error) {
+    console.error("Connection failed:", error);
+    errorMessage.value = "Error: Could not reach AI Advisor. Check if the backend is awake!";
+  } finally {
+    loading.value = false;
   }
 };
 </script>
 
 <style scoped>
-input, textarea {
-  display: block;
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
+.mood-container { 
+  max-width: 400px; 
+  margin: 2rem auto; 
+  padding: 20px;
+  text-align: center; 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  border: 1px solid #eee;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-button {
-  padding: 8px 16px;
-  margin-bottom: 10px;
+.input-group { display: flex; flex-direction: column; gap: 15px; }
+input, textarea { 
+  padding: 12px; 
+  border-radius: 8px; 
+  border: 1px solid #ddd; 
+  font-size: 1rem;
 }
-ul {
-  list-style-type: none;
-  padding-left: 0;
+textarea { min-height: 100px; resize: vertical; }
+button { 
+  padding: 12px; 
+  background: #42b983; 
+  color: white; 
+  border: none; 
+  border-radius: 8px;
+  cursor: pointer; 
+  font-weight: bold;
+  transition: background 0.3s;
 }
-li {
-  margin-bottom: 5px;
+button:hover { background: #38a171; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+.ai-box { 
+  margin-top: 25px; 
+  padding: 20px; 
+  background: #f0fdf4; 
+  border-radius: 12px; 
+  border-left: 6px solid #42b983; 
+  text-align: left;
 }
+.ai-box h3 { margin-top: 0; color: #2c3e50; }
+.error { color: #e74c3c; margin-top: 15px; font-weight: bold; }
 </style>
