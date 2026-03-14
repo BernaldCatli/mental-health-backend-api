@@ -1,10 +1,17 @@
 const express = require('express');
-const mysql = require('mysql2'); // This line was likely missing!
+const mysql = require('mysql2');
 const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// ✅ UPDATED CORS: Specifically allow your GitHub Pages site
+app.use(cors({
+    origin: ['https://bernaldcatli.github.io', 'http://localhost:5173'],
+    methods: ['GET', 'POST'],
+    credentials: true
+}));
+
 app.use(express.json());
 
 const db = mysql.createPool({
@@ -34,6 +41,7 @@ db.getConnection((err, connection) => {
 app.post('/api/mood', (req, res) => {
     const { name, mood } = req.body;
     
+    // AI Logic
     let ai_response = `I understand you're feeling ${mood}, ${name}. `;
     if (mood.toLowerCase().includes('sad')) ai_response += "Try to take a walk or talk to a friend.";
     else if (mood.toLowerCase().includes('happy')) ai_response += "That's great! Keep that positive energy.";
@@ -43,7 +51,7 @@ app.post('/api/mood', (req, res) => {
     db.query(sql, [name, mood, ai_response], (err) => {
         if (err) {
             console.error("Insert error:", err.message);
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: "Database error. Check your table structure." });
         }
         res.json({ ai_response });
     });
