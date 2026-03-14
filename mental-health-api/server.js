@@ -1,3 +1,12 @@
+const express = require('express');
+const mysql = require('mysql2'); // This line was likely missing!
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 const db = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -5,14 +14,14 @@ const db = mysql.createPool({
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 14391, 
     ssl: { 
-        rejectUnauthorized: false // Change to false for better compatibility with Render/Aiven
+        rejectUnauthorized: false 
     },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
 
-// ADD THIS: Test the connection immediately on startup
+// Test the connection immediately
 db.getConnection((err, connection) => {
     if (err) {
         console.error("❌ Database connection failed:", err.message);
@@ -21,3 +30,24 @@ db.getConnection((err, connection) => {
         connection.release();
     }
 });
+
+app.post('/api/mood', (req, res) => {
+    const { name, mood } = req.body;
+    
+    let ai_response = `I understand you're feeling ${mood}, ${name}. `;
+    if (mood.toLowerCase().includes('sad')) ai_response += "Try to take a walk or talk to a friend.";
+    else if (mood.toLowerCase().includes('happy')) ai_response += "That's great! Keep that positive energy.";
+    else ai_response += "Thank you for sharing your thoughts with me.";
+
+    const sql = "INSERT INTO mood_entries (name, mood, ai_response) VALUES (?, ?, ?)";
+    db.query(sql, [name, mood, ai_response], (err) => {
+        if (err) {
+            console.error("Insert error:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ ai_response });
+    });
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
